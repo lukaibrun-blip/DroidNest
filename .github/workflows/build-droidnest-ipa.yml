@@ -15,16 +15,33 @@ on:
 permissions:
   contents: read
 
+# One build per branch: a newer push restarts the job instead of letting two of them race for the same cache.
+concurrency:
+  group: droidnest-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: macos-latest
-    timeout-minutes: 360
+    timeout-minutes: 350
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
+      - name: Make room on the disk
+        # QEMU, ANGLE (a sparse WebKit checkout) and MoltenVK all unpack into the workspace and fill a stock runner
+        # somewhere inside the QEMU build. The simulator runtimes this job never uses are the cheapest space to take back.
+        run: |
+          df -h /
+          sudo rm -rf /Library/Developer/CoreSimulator/Caches/*
+          sudo rm -rf /Library/Developer/CoreSimulator/Profiles/Runtimes/*
+          xcrun simctl delete unavailable >/dev/null 2>&1 || true
+          rm -rf "$HOME/Library/Developer/Xcode/DerivedData"
+          df -h /
+
       - name: Install build tools
-        run: brew install autoconf automake cmake gettext libtool meson ninja pkg-config qemu xcodegen
+        # No qemu formula: that one is for qemu-img, which only Husk's own guest staging needs. DroidNest boots no guest.
+        run: brew install autoconf automake cmake gettext libtool meson ninja pkg-config xcodegen
 
       - name: Install Rust and iOS target
         uses: dtolnay/rust-toolchain@stable
@@ -37,14 +54,35 @@ jobs:
           xcodebuild -showsdks
           swift --version
 
+      - name: Cache the dependencies
+        # The dependency build is the hours-long part. Everything it produces is stamped by scripts/build_ios.sh, so a
+        # restored cache is skipped rather than trusted: the sources and their stamps travel together, and any change to
+        # the scripts that build them changes the key.
+        uses: actions/cache@v4
+        with:
+          path: |
+            third_party/sources
+            third_party/build
+            build/ios-arm64
+            build/stamps
+          key: droidnest-deps-${{ runner.os }}-${{ hashFiles('scripts/sources.sh', 'scripts/build_ios.sh', 'scripts/integrate_husk.sh', 'scripts/build_angle_ios.sh', 'scripts/build_gpu_ios.sh', 'scripts/build_moltenvk_ios.sh', 'scripts/build_rppairing_ios.sh', 'patches/**') }}
+          restore-keys: |
+            droidnest-deps-${{ runner.os }}-
+
+      - name: Make the scripts executable
+        # The repository stores them without the bit (a checkout made on another machine, or through a tool that does not
+        # keep modes), and "./tests/solo/run.sh: Permission denied" is the first thing a fresh clone says.
+        run: |
+          chmod +x scripts/*.sh tests/solo/*.sh tests/translation-layer/*.sh
+
       - name: Run DroidNest core tests
-        run: ./tests/solo/run.sh
+        run: bash ./tests/solo/run.sh
 
       - name: Build DroidNest IPA
         env:
           DROIDNEST_ONLY: "1"
           DD: ${{ github.workspace }}/build/droidnest-derived
-        run: ./scripts/ci_build.sh
+        run: bash ./scripts/ci_build.sh
 
       - name: Upload IPA and build logs
         if: always()
