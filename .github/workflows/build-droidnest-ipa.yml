@@ -41,7 +41,13 @@ jobs:
 
       - name: Install build tools
         # No qemu formula: that one is for qemu-img, which only Husk's own guest staging needs. DroidNest boots no guest.
-        run: brew install autoconf automake cmake gettext libtool meson ninja pkg-config xcodegen
+        run: |
+          brew install autoconf automake cmake gettext libtool meson ninja pkg-config xcodegen
+          # virglrenderer's src/gallium/meson.build imports yaml while it configures, and Homebrew's python ships without
+          # it: "ERROR: /opt/homebrew/bin/python3 is missing modules: yaml" is where the GPU stack stopped. Same interpreter
+          # the cross files name (build_ios.sh writes `python = ['$(command -v python3)']`), so it is that one that needs it.
+          python3 -m pip install --quiet --break-system-packages PyYAML
+          python3 -c 'import yaml; print("PyYAML", yaml.__version__)'
 
       - name: Install Rust and iOS target
         uses: dtolnay/rust-toolchain@stable
