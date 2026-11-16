@@ -1,0 +1,60 @@
+name: Build DroidNest IPA
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/build-droidnest-ipa.yml"
+      - "scripts/**"
+      - "src/**"
+      - "patches/**"
+      - "tests/solo/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: brew install autoconf automake cmake gettext libtool meson ninja pkg-config qemu xcodegen
+
+      - name: Install Rust and iOS target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          target: aarch64-apple-ios
+
+      - name: Show Apple toolchain
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks
+          swift --version
+
+      - name: Run DroidNest core tests
+        run: ./tests/solo/run.sh
+
+      - name: Build DroidNest IPA
+        env:
+          DROIDNEST_ONLY: "1"
+          DD: ${{ github.workspace }}/build/droidnest-derived
+        run: ./scripts/ci_build.sh
+
+      - name: Upload IPA and build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DroidNest-${{ github.sha }}
+          path: |
+            build/DroidNest.ipa
+            build/droidnest-derived/build.log
+            build/logs/
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0

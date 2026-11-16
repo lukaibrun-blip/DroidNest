@@ -410,10 +410,6 @@ targets:
         embed: true
         codeSign: true
         link: false
-      - framework: ../../build/ios-arm64/lib/libhuskps4.dylib
-        embed: true
-        codeSign: true
-        link: false
     preBuildScripts:
       - name: Stage Android system files
         # What apps on the translation layer read directly: the CA certificates and the system fonts. Optional, as in Husk: a

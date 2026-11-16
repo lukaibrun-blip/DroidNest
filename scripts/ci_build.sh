@@ -40,8 +40,10 @@ step "integrate Husk sources into QEMU, then rebuild it"
 ./scripts/integrate_husk.sh
 ./scripts/build_ios.sh qemurebuild
 
-step "guest kernel + firmware"
-./scripts/fetch_phase0_guest.sh
+if [ "${DROIDNEST_ONLY:-0}" != "1" ]; then
+    step "guest kernel + firmware"
+    ./scripts/fetch_phase0_guest.sh
+fi
 
 if [ ! -d build/ios-arm64/lib/MoltenVK.xcframework ]; then
     step "MoltenVK (Vulkan over Metal, for Unreal Engine games)"
@@ -52,6 +54,13 @@ step "on-device pairing (Rust)"
 ./scripts/build_rppairing_ios.sh
 
 step "app + IPA"
-mkdir -p "$(dirname "$OUT")"
-./scripts/package_ipa.sh "$OUT"
-./scripts/package_ipa.sh --trollstore "${OUT%.ipa}.tipa"
+mkdir -p "$(dirname "$OUT")" "$HUSK_ROOT/build"
+if [ "${DROIDNEST_ONLY:-0}" = "1" ]; then
+    DD="${DD:-$HUSK_ROOT/build/droidnest-derived}" \
+        ./scripts/package_droidnest_ipa.sh "$HUSK_ROOT/build/DroidNest.ipa"
+else
+    ./scripts/package_ipa.sh "$OUT"
+    ./scripts/package_ipa.sh --trollstore "${OUT%.ipa}.tipa"
+    DD="${DD:-$HUSK_ROOT/build/droidnest-derived}" \
+        ./scripts/package_droidnest_ipa.sh "$HUSK_ROOT/build/DroidNest.ipa"
+fi

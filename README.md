@@ -33,6 +33,8 @@ Num Mac com Xcode, `meson`, `ninja`, `pkg-config`, `python3`, `xcodegen`, `qemu-
 ./tests/solo/run.sh                        # as verificações do DroidNest
 ```
 
+O build remoto do DroidNest também pode ser iniciado em GitHub Actions pelo workflow `Build DroidNest IPA`; ao terminar, baixe o IPA no artifact da execução. O IPA é ad hoc para sideload, não um pacote da App Store.
+
 O `.pbxproj` versionado é gerado do `project.yml` pelo `xcodegen` (os scripts regeneram antes de compilar).
 
 ## Instalar no iPhone
