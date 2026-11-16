@@ -112,10 +112,15 @@ equal("a file that fits is let through",
 equal("a file that fills the phone is refused before the copy starts",
       SoloImport.rejection(for: [(name: "game.apk", bytes: 900_000_000)], free: 950_000_000, headroom: 100_000_000),
       .notEnoughSpace(needed: 900_000_000, free: 950_000_000))
+// Neither file is too big for the phone on its own (400 MB + 100 MB of headroom is well under 850 MB); together they are not.
 equal("several files add up",
       SoloImport.rejection(for: [(name: "a.apk", bytes: 400_000_000), (name: "b.apk", bytes: 400_000_000)],
-                           free: 900_000_000, headroom: 100_000_000),
-      .notEnoughSpace(needed: 800_000_000, free: 900_000_000))
+                           free: 850_000_000, headroom: 100_000_000),
+      .notEnoughSpace(needed: 800_000_000, free: 850_000_000))
+// The headroom is what has to survive the copies, so a sum that leaves exactly that much room is still let through.
+equal("a sum that fits with the headroom to spare is let through",
+      SoloImport.rejection(for: [(name: "a.apk", bytes: 400_000_000), (name: "b.apk", bytes: 400_000_000)],
+                           free: 900_000_000, headroom: 100_000_000), nil)
 equal("free space that could not be read is not a refusal",
       SoloImport.rejection(for: [(name: "game.apk", bytes: 4_000_000_000)], free: 0), nil)
 check("the space message says how much is needed",
