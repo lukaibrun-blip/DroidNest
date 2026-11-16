@@ -88,7 +88,19 @@ jobs:
         env:
           DROIDNEST_ONLY: "1"
           DD: ${{ github.workspace }}/build/droidnest-derived
-        run: bash ./scripts/ci_build.sh
+        run: |
+          # Every script ci_build.sh calls sends its output to build/logs/, so without this the run page says nothing for the
+          # better part of an hour and looks stuck. A heartbeat prints the newest log's last line instead.
+          (
+            for _ in $(seq 1 900); do
+              sleep 20
+              newest="$(ls -t build/logs/*.log 2>/dev/null | head -1)" || true
+              [ -n "${newest:-}" ] && echo "[$(basename "$newest")] $(tail -n 1 "$newest" 2>/dev/null | tr -d '\r')" || true
+            done
+          ) &
+          heartbeat=$!
+          trap 'kill "$heartbeat" 2>/dev/null || true' EXIT
+          bash ./scripts/ci_build.sh
 
       - name: Upload IPA and build logs
         if: always()
