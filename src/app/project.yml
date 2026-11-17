@@ -357,7 +357,9 @@ targets:
         CODE_SIGN_STYLE: Automatic
         INFOPLIST_FILE: DroidNest/Info.plist
         CODE_SIGN_ENTITLEMENTS: "$(HUSK_ENTITLEMENTS)"
-        SWIFT_OBJC_BRIDGING_HEADER: Husk/HuskBridge.h
+        # Husk's declarations plus this app's Rust core. Husk's own target keeps HuskBridge.h untouched, so nothing that
+        # calls droidnest_* can ever be compiled into a target that does not link the library.
+        SWIFT_OBJC_BRIDGING_HEADER: DroidNest/DroidNestBridge.h
         LD_RUNPATH_SEARCH_PATHS:
           - "$(inherited)"
           - "@executable_path/Frameworks"

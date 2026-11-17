@@ -54,11 +54,16 @@ impl Verdict {
 
 /// The extension as written in the name, without the dot: "" when there is none.
 ///
-/// A dot in a folder name is not an extension, which is why the part before it has to be non-empty and dot-free: "my.folder"
-/// has no extension, and neither does "README".
+/// The directory comes off first: a dot in a folder name is not an extension, so "my.folder/game.apk" is an APK and
+/// "my.folder/game" has no extension at all. The part before the dot has to be non-empty, which is what keeps ".apk" and
+/// "README" from being read as extensions.
 pub fn extension(name: &str) -> &str {
-    match name.rsplit_once('.') {
-        Some((stem, ext)) if !stem.is_empty() && !stem.contains('/') => ext,
+    let file = match name.rsplit_once('/') {
+        Some((_, file)) => file,
+        None => name,
+    };
+    match file.rsplit_once('.') {
+        Some((stem, ext)) if !stem.is_empty() => ext,
         _ => "",
     }
 }
@@ -169,8 +174,10 @@ mod tests {
         assert!(!ACCEPTED.iter().any(|ext| extension_is("README", ext)));
         assert_eq!(extension("game.apk.part"), "part");
         // A dot in a folder name is not the file's extension.
-        assert_eq!(extension("my.folder/game"), "game");
-        assert_eq!(extension("my.folder/game"), "game");
+        assert_eq!(extension("my.folder/game.apk"), "apk");
+        assert!(extension_is("my.folder/GAME.APK", "apk"));
+        // And a file with no dot of its own has none, whatever the folder is called.
+        assert_eq!(extension("my.folder/game"), "");
     }
 
     #[test]
