@@ -391,7 +391,12 @@ targets:
           - "Accelerate"
           - "-framework"
           - "Security"
+          # On-device pairing for Built-in StikJIT, built by scripts/build_rppairing_ios.sh.
           - "-lhusk_rppairing"
+          # DroidNest's own core, in Rust (src/droidnest-core), built by scripts/build_droidnest_core.sh: what an import is,
+          # decided before the copy, and why the last run stopped. It is a no_std staticlib, so it adds no second copy of
+          # Rust's std to a binary that already carries libhusk_rppairing.a.
+          - "-ldroidnest_core"
     dependencies:
       # Built-in StikJIT's debugger process, under this app's own identifier and product name.
       - target: DroidNestJITHelper
@@ -411,6 +416,21 @@ targets:
         codeSign: true
         link: false
     preBuildScripts:
+      - name: Draw DroidNest's icon
+        # DroidNest's icon is its own, drawn from geometry by scripts/make_droidnest_icon.py (a nest, and one game sitting
+        # in it), so it is regenerated at build time rather than checked in as a binary nobody can edit. It needs nothing
+        # but python3, and it writes the same 1024x1024 PNG every run.
+        script: |
+          set -e
+          DEST="$SRCROOT/DroidNest/Assets.xcassets/AppIcon.appiconset/Icon-1024.png"
+          if command -v python3 >/dev/null 2>&1; then
+            python3 "$SRCROOT/../../scripts/make_droidnest_icon.py" || \
+              echo "warning: the icon could not be redrawn; using the one in the catalogue" >&2
+          else
+            echo "warning: python3 not found; the icon in the catalogue is used as it is" >&2
+          fi
+          [ -f "$DEST" ] || echo "error: no app icon at $DEST" >&2
+        basedOnDependencyAnalysis: false
       - name: Stage Android system files
         # What apps on the translation layer read directly: the CA certificates and the system fonts. Optional, as in Husk: a
         # build without them starts the games that do not need them.

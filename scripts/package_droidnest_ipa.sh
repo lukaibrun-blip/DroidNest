@@ -31,6 +31,16 @@ else
     echo "==> xcodegen not installed; using the checked-in project as-is" >&2
 fi
 
+# DroidNest's own core, in Rust. The target links -ldroidnest_core, so it has to exist before xcodebuild runs -- and it is
+# cheap (a pair of pure functions, no std), so it is rebuilt every time rather than trusted from an earlier build.
+if command -v cargo >/dev/null 2>&1; then
+    echo "==> building the Rust core (src/droidnest-core)"
+    "$DROIDNEST_ROOT/scripts/build_droidnest_core.sh"
+else
+    echo "error: cargo not found. DroidNest's core is Rust (src/droidnest-core): install it from https://rustup.rs" >&2
+    exit 1
+fi
+
 echo "==> building DroidNest"
 xcodebuild -project "$DROIDNEST_ROOT/src/app/Husk.xcodeproj" -scheme DroidNest \
     -sdk iphoneos -configuration Release -derivedDataPath "$DD" \

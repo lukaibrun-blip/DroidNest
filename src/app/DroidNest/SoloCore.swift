@@ -107,51 +107,9 @@ struct SoloSelectionStore {
 
 // MARK: - importing
 
-/// Why an import did not start. Every case is said to the person in the app, in words that name what to do.
-enum SoloImportRejection: Equatable {
-    case nothingChosen
-    case unsupportedFile(String)
-    case notEnoughSpace(needed: Int64, free: Int64)
-
-    var message: String {
-        switch self {
-        case .nothingChosen:
-            return "No file was chosen."
-        case .unsupportedFile(let name):
-            return "\(name) is not something DroidNest can add. Choose an APK, or a bundle of them (.xapk, .apkm, .apks), "
-                 + "or the APK's OBB file."
-        case .notEnoughSpace(let needed, let free):
-            return "There is not enough room for this: it needs about \(SoloImport.size(needed)) and this iPhone has "
-                 + "\(SoloImport.size(free)) free. Remove something, or free up space, and try again."
-        }
-    }
-}
-
+/// The one thing left in Swift about importing: how a size is written. What is accepted, and why a file is refused, is
+/// decided by DroidNest's Rust core (src/droidnest-core, through DNCore) -- before a byte is copied.
 enum SoloImport {
-    /// The same set the translation layer's own importer takes: an APK, a bundle that is one app's APKs in a zip, and an
-    /// expansion file (OBB) that belongs beside one.
-    static let acceptedExtensions: Set<String> = ["apk", "xapk", "apkm", "apks", "obb"]
-
-    /// Room left over after the copies, so a phone that is almost full fails here rather than halfway through a copy.
-    static let headroom: Int64 = 64 * 1024 * 1024
-
-    static func accepts(_ name: String) -> Bool {
-        acceptedExtensions.contains((name as NSString).pathExtension.lowercased())
-    }
-
-    /// nil means go ahead. `free` of 0 or less means the free space could not be read, which is not a reason to refuse.
-    static func rejection(for files: [(name: String, bytes: Int64)], free: Int64,
-                          headroom: Int64 = SoloImport.headroom) -> SoloImportRejection? {
-        guard !files.isEmpty else { return .nothingChosen }
-        if let unsupported = files.first(where: { !accepts($0.name) }) {
-            return .unsupportedFile(unsupported.name)
-        }
-        guard free > 0 else { return nil }
-        let needed = files.reduce(Int64(0)) { $0 + max($1.bytes, 0) }
-        if needed + headroom > free { return .notEnoughSpace(needed: needed, free: free) }
-        return nil
-    }
-
     /// "1.2 GB", for a sentence about space.
     static func size(_ bytes: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: max(bytes, 0), countStyle: .file)
@@ -249,6 +207,9 @@ enum SoloGesture {
 enum SoloSettings {
     /// "Turn JIT on when DroidNest opens", on by default.
     static let autoJITKey = "droidnest.jit.autoEnable"
+    /// "Keep the game running when you go back", on by default: a game that stops drawing when the app leaves the screen
+    /// usually comes back to a black frame, which reads as a crash.
+    static let keepRunningKey = "droidnest.keepRunning"
 }
 
 // MARK: - which game the runtime can hold

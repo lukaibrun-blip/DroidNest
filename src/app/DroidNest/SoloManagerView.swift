@@ -12,12 +12,15 @@ struct SoloManagerView: View {
 
     @ObservedObject private var solo = SoloStore.shared
     @ObservedObject private var jit = JITCoordinator.shared
-    @AppStorage(SoloGesture.exitKey) private var exitGesture = true
-    @AppStorage(SoloSettings.autoJITKey) private var autoJIT = true
     @State private var confirmingRemove: TLApp?
-    @State private var showingAbout = false
 
     var body: some View {
+        NavigationStack {
+            page
+        }
+    }
+
+    private var page: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header
@@ -34,7 +37,7 @@ struct SoloManagerView: View {
                 mainGame
                 jitSection
                 games
-                settings
+                shortcuts
                 footer
             }
             .padding(.horizontal, 20)
@@ -44,7 +47,6 @@ struct SoloManagerView: View {
         .background(Console.page.ignoresSafeArea())
         .onAppear { solo.refresh() }
         .sheet(isPresented: $jit.showSetup) { JITSetupFlow() }
-        .sheet(isPresented: $showingAbout) { about }
         .alert("Something is not right", isPresented: Binding(
             get: { solo.error != nil },
             set: { if !$0 { solo.error = nil } })) {
@@ -304,36 +306,24 @@ struct SoloManagerView: View {
 
     // MARK: settings
 
-    private var settings: some View {
+    /// The way into Settings, which has everything else: JIT, the switches, the logs and the last crash report.
+    private var shortcuts: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("DroidNest")
                 .font(.system(size: 19, weight: .bold))
                 .foregroundStyle(Console.text)
 
             VStack(spacing: 0) {
-                toggleRow("Turn JIT on when DroidNest opens", detail: SoloJIT.summary, isOn: $autoJIT)
-                Rectangle().fill(Console.hairline).frame(height: 1).padding(.leading, 14)
-                toggleRow("Three fingers held for five seconds leaves the game",
-                          detail: "A fourth finger, or one lifting early, cancels it. A game that needs three fingers can be "
-                                + "given them by turning this off.",
-                          isOn: $exitGesture)
-                Rectangle().fill(Console.hairline).frame(height: 1).padding(.leading, 14)
-                Button { showingAbout = true } label: {
-                    HStack {
-                        Text("About DroidNest")
-                            .font(.system(size: 15))
-                            .foregroundStyle(Console.text)
-                        Spacer()
-                        Text(SoloAbout.version)
-                            .font(.system(size: 13))
-                            .foregroundStyle(Console.textDim)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(Console.textDim)
-                    }
-                    .padding(.horizontal, 14)
-                    .frame(height: 52)
-                    .contentShape(Rectangle())
+                NavigationLink { SoloSettingsView() } label: {
+                    shortcut("Settings", detail: SoloJIT.summary, symbol: "gearshape")
+                }
+                .buttonStyle(.plain)
+                Rectangle().fill(Console.hairline).frame(height: 1).padding(.leading, 58)
+                NavigationLink { SoloLogsView() } label: {
+                    shortcut("Logs", detail: SoloCrashLog.hasAny
+                                ? "The last crash, and every log of that run"
+                                : "This run, the last one, and what the game printed",
+                             symbol: "doc.text.magnifyingglass")
                 }
                 .buttonStyle(.plain)
             }
@@ -341,72 +331,31 @@ struct SoloManagerView: View {
         }
     }
 
-    private func toggleRow(_ title: String, detail: String, isOn: Binding<Bool>) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
+    private func shortcut(_ title: String, detail: String, symbol: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 30, height: 30)
+                .background(Theme.accent.opacity(0.15), in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 15))
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Console.text)
-                    .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
                     .font(.system(size: 11))
                     .foregroundStyle(Console.textDim)
+                    .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: 8)
-            Toggle("", isOn: isOn)
-                .labelsHidden()
-                .tint(Theme.accent)
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(Console.textDim)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-    }
-
-    private var about: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Text("About DroidNest")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(Console.text)
-                    Spacer()
-                    Button { showingAbout = false } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Console.textDim)
-                            .frame(width: 32, height: 32)
-                            .background(Console.raised, in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                }
-                Text("DroidNest \(SoloAbout.version)")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Console.textDim)
-                section("The name and the icon", SoloAbout.nameNote)
-                section("What it is", "DroidNest is Husk, with one game in front of it. The emulator, the store and the rest of "
-                        + "Husk are in the app you have; this one only runs the game you chose, using Husk's translation layer.")
-                section("Licence", "GPL-2.0-or-later, the same as Husk, which it is built from. It links QEMU (GPLv2), so the "
-                        + "whole app is a GPLv2 work: its source is published with every build, and it is not for the App Store. "
-                        + "StikJIT (MPL-2.0) and idevice (MIT) are bundled and their licences travel with the app.")
-                section("Games", "An APK is copied into DroidNest's own storage and stays there until you remove it. DroidNest "
-                        + "does not download games and does not claim every APK will run: what starts is what Husk's translation "
-                        + "layer can run on this iPhone.")
-            }
-            .padding(20)
-        }
-        .background(Console.page.ignoresSafeArea())
-    }
-
-    private func section(_ title: String, _ body: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Console.text)
-            Text(body)
-                .font(.system(size: 13))
-                .foregroundStyle(Console.textDim)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        .frame(height: 56)
+        .contentShape(Rectangle())
     }
 
     private var footer: some View {

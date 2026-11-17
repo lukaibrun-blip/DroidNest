@@ -2,6 +2,8 @@
 build/
 # On-device pairing crate (scripts/build_rppairing_ios.sh)
 src/rppairing-ios/target/
+# DroidNest's own core crate (scripts/build_droidnest_core.sh)
+src/droidnest-core/target/
 third_party/build/
 third_party/sources/
 third_party/qemu-upstream/

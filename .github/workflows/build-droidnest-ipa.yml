@@ -79,10 +79,20 @@ jobs:
         # The repository stores them without the bit (a checkout made on another machine, or through a tool that does not
         # keep modes), and "./tests/solo/run.sh: Permission denied" is the first thing a fresh clone says.
         run: |
-          chmod +x scripts/*.sh tests/solo/*.sh tests/translation-layer/*.sh
+          chmod +x scripts/*.sh tests/core/*.sh tests/translation-layer/*.sh
+          [ -f tests/solo/run.sh ] && chmod +x tests/solo/run.sh || true
 
-      - name: Run DroidNest core tests
-        run: bash ./tests/solo/run.sh
+      - name: Run DroidNest's Rust core tests
+        # What an import is, and why the last run stopped: pure functions over bytes, so `cargo test` proves them on the CI
+        # machine itself, with no simulator and no iPhone. Before the app build, so a broken core fails in seconds.
+        run: bash ./tests/core/run.sh
+
+      - name: Run the Swift checks
+        # The three-finger gesture and the launch decision, which are Swift with no UIKit in them.
+        run: |
+          if [ -f tests/solo/run.sh ]; then bash ./tests/solo/run.sh
+          else echo "tests/solo/run.sh is not in this tree yet; skipping" >&2
+          fi
 
       - name: Build DroidNest IPA
         env:

@@ -88,16 +88,52 @@ final class SoloStore: ObservableObject {
 
     /// Copy the chosen files in, then read them. Nothing is deleted, here or on a failure: a file that could not be read is
     /// kept and named, so it can be looked at rather than silently disappearing.
+    ///
+    /// Every file is judged *before* it is copied, by DroidNest's own core (src/droidnest-core, in Rust): its extension, its
+    /// first bytes, its size against the room there is, and whether the same game is already here. Husk's importer copies
+    /// first and reports afterwards, which is how a failed download leaves a folder behind and why an import needs two
+    /// attempts to find out it was never an APK.
     func importFiles(_ urls: [URL]) {
         guard importing == nil else { return }
-        let files = urls.map { (name: $0.lastPathComponent, bytes: Self.bytes(of: $0)) }
-        if let rejection = SoloImport.rejection(for: files, free: Self.freeBytes()) {
-            error = rejection.message
+        guard !urls.isEmpty else {
+            error = "No file was chosen."
             return
         }
+
+        var accepted: [URL] = []
+        var notes: [String] = []
+        let free = Self.freeBytes()
+        let installed = Set(library.apps.compactMap(\.packageName).filter { !$0.isEmpty })
+
+        for url in urls {
+            let name = url.lastPathComponent
+            let bytes = Self.bytes(of: url)
+            let read = SoloAPKProbe.head(of: url)
+            let sameGame = read.package.map { installed.contains($0) } ?? false
+            switch DNCore.check(name: name, head: read.head, bytes: bytes, free: free, installed: sameGame) {
+            case .accept:
+                accepted.append(url)
+            case .note(let why):
+                accepted.append(url)
+                notes.append(why)
+            case .refuse(let why):
+                // One refusal stops the import before anything is written: the sentence names the file and what to do.
+                error = why
+                return
+            }
+        }
+        guard !accepted.isEmpty else {
+            error = "No file was chosen."
+            return
+        }
+        if let note = notes.first {
+            // Said, but not as an error: the copy goes ahead, and the game already here is never touched.
+            error = note
+        }
+
         let before = Set(library.apps.map(\.id))
-        importing = files.count == 1 ? files[0].name : "\(files.count) files"
-        library.add(urls)
+        importing = accepted.count == 1 ? accepted[0].lastPathComponent : "\(accepted.count) files"
+        library.add(accepted)
         Task { @MainActor in
             // TranslationLayerStore copies and scans away from the main thread and says it is done by clearing `busy`.
             while library.busy != nil { try? await Task.sleep(nanoseconds: 150_000_000) }

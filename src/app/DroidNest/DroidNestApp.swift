@@ -64,6 +64,14 @@ struct SoloRootView: View {
         guard !autoLaunchDone else { return }
         autoLaunchDone = true
         solo.refresh()
+        // A game that ended DroidNest last time: noticed here, and saved as a report that outlives this launch.
+        //
+        // Husk only reads its marker inside ContentView, which DroidNest does not have -- so before this line the app never
+        // knew a game had crashed, and the one file that explains it was overwritten by the next run. The report is written
+        // to Documents/DroidNest/crashes/, and the settings page opens it whenever the person gets to it, not only on the
+        // launch after the crash.
+        CrashReport.shared.checkPreviousRun()
+        SoloCrashLog.archiveIfNeeded(CrashReport.shared.pending)
         SoloJIT.turnOnAtLaunchIfPossible()
         openChosenGame()
     }

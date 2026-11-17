@@ -118,4 +118,9 @@ void tl_ld_set_aot_dir(const char *dir);
 #include "../../translation-layer-next/husk-tl-aot.h"
 #include "../../translation-layer-next/husk-tl-codesign.h"
 
+/* --- DroidNest's own core, in Rust (src/droidnest-core) --- */
+/* Declarations only: the DroidNest target links libdroidnest_core.a, and Husk's
+   target compiles this header without it and never calls into it. */
+#include "../DroidNest/DroidNestCore.h"
+
 #endif /* HUSK_BRIDGE_H */

@@ -1,0 +1,20 @@
+[package]
+name = "droidnest_core"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+publish = false
+description = "DroidNest's own decisions: what an import is, and why a game stopped. No dependencies, no std."
+
+[lib]
+# staticlib for the app (libdroidnest_core.a, linked by the DroidNest target only); rlib so `cargo test` can run it on any
+# host. The crate is no_std on purpose: Husk already links one Rust staticlib (src/rppairing-ios, for StikJIT's pairing),
+# and two copies of std in one binary is a linker problem nobody needs for a pair of pure functions.
+crate-type = ["staticlib", "rlib"]
+path = "src/lib.rs"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"

@@ -53,6 +53,9 @@ fi
 step "on-device pairing (Rust)"
 ./scripts/build_rppairing_ios.sh
 
+step "DroidNest's own core (Rust)"
+./scripts/build_droidnest_core.sh
+
 step "app + IPA"
 mkdir -p "$(dirname "$OUT")" "$HUSK_ROOT/build"
 if [ "${DROIDNEST_ONLY:-0}" = "1" ]; then
