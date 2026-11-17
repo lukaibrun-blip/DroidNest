@@ -52,10 +52,11 @@ enum SoloBackground {
 
     static func begin(_ name: String) {
         guard task == nil else { return }
-        // The expiry handler is handed the identifier it is expiring, so nothing has to be captured weakly.
-        task = UIApplication.shared.beginBackgroundTask(withName: name) { expired in
-            UIApplication.shared.endBackgroundTask(expired)
-            Task { @MainActor in SoloBackground.forget(expired) }
+        // The expiry handler takes no argument on this SDK: it is @MainActor and @Sendable, so it hops back rather than
+        // touching the identifier from whichever thread iOS calls it on. `expire()` ends whatever is held at that moment,
+        // which is this task or nothing.
+        task = UIApplication.shared.beginBackgroundTask(withName: name) {
+            Task { @MainActor in SoloBackground.expire() }
         }
         HuskLog.log("droidnest", "asked iOS for time after leaving the screen (\(name))")
     }
@@ -66,8 +67,10 @@ enum SoloBackground {
         task = nil
     }
 
-    /// The task iOS expired on its own: forget it, if it is still the one being held.
-    private static func forget(_ expired: UIBackgroundTaskIdentifier) {
-        if task == expired { task = nil }
+    /// iOS ran out of time for the task being held: give it up, so the next `begin` is not refused.
+    private static func expire() {
+        guard let live = task else { return }
+        if live != .invalid { UIApplication.shared.endBackgroundTask(live) }
+        task = nil
     }
 }

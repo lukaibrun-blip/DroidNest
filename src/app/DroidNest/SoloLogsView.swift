@@ -29,6 +29,8 @@ struct SoloLogsView: View {
             }
         }
 
+        /// The file this source reads. A path is not state: both of the app's own are `nonisolated`, so this stays readable
+        /// from anywhere in the view.
         var file: URL {
             switch self {
             case .previous: return CrashReport.previousLogURL

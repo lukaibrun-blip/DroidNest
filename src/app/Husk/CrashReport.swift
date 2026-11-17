@@ -55,9 +55,10 @@ final class CrashReport: ObservableObject {
 
     @Published var pending: Report?
 
-    private static var docs: URL { FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0] }
-    private static var marker: URL { docs.appendingPathComponent("running-game.json") }
-    static var previousLogURL: URL { docs.appendingPathComponent("husk-prev.log") }
+    // A path is not state: `nonisolated` so a view can name the file it wants to read without hopping to the main actor.
+    private nonisolated static var docs: URL { FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0] }
+    private nonisolated static var marker: URL { docs.appendingPathComponent("running-game.json") }
+    nonisolated static var previousLogURL: URL { docs.appendingPathComponent("husk-prev.log") }
 
     // MARK: the note
 

@@ -12,15 +12,15 @@ import UIKit
 @MainActor
 enum SoloCrashLog {
     /// Where the archive lives: DroidNest's own folder, beside the games rather than in them, so removing a game never
-    /// removes the record of why it stopped.
-    static var root: URL {
+    /// removes the record of why it stopped. `nonisolated`: a path is not state, and a view names it to read the file.
+    nonisolated static var root: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("DroidNest", isDirectory: true)
             .appendingPathComponent("crashes", isDirectory: true)
     }
 
     /// The one the settings page opens: always the most recent.
-    static var latest: URL { root.appendingPathComponent("last-crash.txt") }
+    nonisolated static var latest: URL { root.appendingPathComponent("last-crash.txt") }
 
     /// How many are kept: enough to compare two reports, few enough that they cannot fill the phone.
     private static let keep = 10
