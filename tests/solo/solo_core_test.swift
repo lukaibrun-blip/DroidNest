@@ -95,36 +95,11 @@ defaults.removePersistentDomain(forName: suite)
 
 section("what an import takes")
 
-for name in ["game.apk", "GAME.APK", "bundle.xapk", "bundle.apkm", "bundle.apks", "main.1.com.game.obb"] {
-    check("takes \(name)", SoloImport.accepts(name))
-}
-for name in ["notes.txt", "game.zip", "icon.png", "game.apk.part", "README"] {
-    check("refuses \(name)", !SoloImport.accepts(name))
-}
-
-equal("no file at all is its own answer",
-      SoloImport.rejection(for: [], free: 8_000_000_000), .nothingChosen)
-equal("a file that is not an APK is refused by name",
-      SoloImport.rejection(for: [(name: "notes.txt", bytes: 10)], free: 8_000_000_000),
-      .unsupportedFile("notes.txt"))
-equal("a file that fits is let through",
-      SoloImport.rejection(for: [(name: "game.apk", bytes: 200_000_000)], free: 8_000_000_000), nil)
-equal("a file that fills the phone is refused before the copy starts",
-      SoloImport.rejection(for: [(name: "game.apk", bytes: 900_000_000)], free: 950_000_000, headroom: 100_000_000),
-      .notEnoughSpace(needed: 900_000_000, free: 950_000_000))
-// Neither file is too big for the phone on its own (400 MB + 100 MB of headroom is well under 850 MB); together they are not.
-equal("several files add up",
-      SoloImport.rejection(for: [(name: "a.apk", bytes: 400_000_000), (name: "b.apk", bytes: 400_000_000)],
-                           free: 850_000_000, headroom: 100_000_000),
-      .notEnoughSpace(needed: 800_000_000, free: 850_000_000))
-// The headroom is what has to survive the copies, so a sum that leaves exactly that much room is still let through.
-equal("a sum that fits with the headroom to spare is let through",
-      SoloImport.rejection(for: [(name: "a.apk", bytes: 400_000_000), (name: "b.apk", bytes: 400_000_000)],
-                           free: 900_000_000, headroom: 100_000_000), nil)
-equal("free space that could not be read is not a refusal",
-      SoloImport.rejection(for: [(name: "game.apk", bytes: 4_000_000_000)], free: 0), nil)
-check("the space message says how much is needed",
-      SoloImportRejection.notEnoughSpace(needed: 1_000_000_000, free: 500_000_000).message.contains("not enough room"))
+// What is accepted, and why a file is refused, is DroidNest's Rust core now (src/droidnest-core, through DNCore), and its
+// own checks run it: tests/core/run.sh -- 29 of them, including the headroom boundary and the zip signature. What is still
+// Swift is how a size reads in a sentence, and that is what is checked here.
+check("a size reads in whole units", SoloImport.size(2_000_000_000).contains("GB"))
+check("and a small one in bytes", SoloImport.size(12).contains("12"))
 
 // MARK: - three fingers
 

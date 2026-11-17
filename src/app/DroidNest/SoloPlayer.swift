@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import SwiftUI
 import UIKit
+import Combine
 
 /// A game, full screen, with a way back that is not a button left over someone's game.
 ///
@@ -13,6 +14,9 @@ struct SoloPlayer: View {
 
     /// Off for a game that needs three fingers of its own (Settings in the games list).
     @AppStorage(SoloGesture.exitKey) private var exitGesture = true
+    /// "Keep the game running when you go back", which is the only switch in Settings that had nothing behind it: it now asks
+    /// iOS for a little time after the app leaves the screen, which is what keeps a game from coming back to a black frame.
+    @AppStorage(SoloSettings.keepRunningKey) private var keepRunning = true
     @State private var phase: ThreeFingerHold.Phase = .idle
     @State private var asking = false
 
@@ -32,6 +36,16 @@ struct SoloPlayer: View {
         .onChange(of: phase) { newPhase in
             if newPhase == .reached, !asking { asking = true }
         }
+        // The switch in Settings, honoured: while a game is up, leaving the screen asks iOS for a short while of running,
+        // and coming back gives it up. Off, iOS suspends DroidNest the moment it leaves, which ends the game.
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            guard keepRunning else { return }
+            SoloBackground.begin("droidnest-game")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            SoloBackground.end()
+        }
+        .onDisappear { SoloBackground.end() }
         .alert("Leave \(app.label)?", isPresented: $asking) {
             Button("Keep Playing", role: .cancel) { phase = .idle }
             // The bar DroidNest opens on: the game stops, and another APK can be chosen or added.
