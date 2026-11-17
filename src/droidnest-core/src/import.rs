@@ -90,21 +90,27 @@ pub fn is_zip(head: &[u8]) -> bool {
 pub fn check(spec: &ImportSpec, out: &mut Buf) -> Verdict {
     if !ACCEPTED.iter().any(|ext| extension_is(spec.name, ext)) {
         out.push_str(spec.name);
-        out.push_str(" is not something DroidNest can add. Choose an APK, a bundle of them (.xapk, .apkm, .apks), or the "
-                     + "APK's expansion file (.obb).");
+        out.push_str(
+            " is not something DroidNest can add. Choose an APK, a bundle of them (.xapk, .apkm, .apks), or the \
+             APK's expansion file (.obb).",
+        );
         return Verdict::Refuse;
     }
     if spec.bytes == 0 {
         out.push_str(spec.name);
-        out.push_str(" is empty (0 bytes), so there is nothing to add. It probably did not finish downloading: download it "
-                     + "again and choose the new file.");
+        out.push_str(
+            " is empty (0 bytes), so there is nothing to add. It probably did not finish downloading: download it \
+             again and choose the new file.",
+        );
         return Verdict::Refuse;
     }
     // An OBB is not a zip, and a head that could not be read is not evidence of anything: only what was read is judged.
     if !is_obb(spec.name) && !spec.head.is_empty() && !is_zip(spec.head) {
         out.push_str(spec.name);
-        out.push_str(" is not an APK: an APK is a zip file, and this one does not begin like one. It may have been "
-                     + "renamed, or it may be a web page saved from a download that failed.");
+        out.push_str(
+            " is not an APK: an APK is a zip file, and this one does not begin like one. It may have been \
+             renamed, or it may be a web page saved from a download that failed.",
+        );
         return Verdict::Refuse;
     }
     if spec.free > 0 && spec.bytes.saturating_add(HEADROOM) > spec.free {
@@ -117,8 +123,10 @@ pub fn check(spec: &ImportSpec, out: &mut Buf) -> Verdict {
     }
     if spec.installed {
         out.push_str(spec.name);
-        out.push_str(" is already in DroidNest (the same Android package). This one is added beside it as a separate copy, "
-                     + "so the game you already have is never replaced or deleted.");
+        out.push_str(
+            " is already in DroidNest (the same Android package). This one is added beside it as a separate copy, \
+             so the game you already have is never replaced or deleted.",
+        );
         return Verdict::AcceptWithNote;
     }
     Verdict::Accept
