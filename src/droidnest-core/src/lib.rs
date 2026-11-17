@@ -9,14 +9,20 @@
 //! - [`crash`]: what the last run's log says about why it stopped -- a fatal signal, a runtime that refused to start the
 //!   game, iOS reclaiming the memory, or nothing recorded.
 //!
-//! The crate is `no_std` and allocation-free: it is linked into an app that already carries one Rust staticlib
-//! (`src/rppairing-ios`, for built-in StikJIT's pairing), and a second copy of std in the same binary is a linker problem
-//! nobody needs for a pair of pure functions. Text crosses the boundary in a `char *` the caller owns.
+//! The crate is `no_std` and allocation-free where it ships (the arm64 iOS build): it is linked into an app that already
+//! carries one Rust staticlib (`src/rppairing-ios`, for built-in StikJIT's pairing), and a second copy of std in the same
+//! binary is a linker problem nobody needs for a pair of pure functions. Text crosses the boundary in a `char *` the caller
+//! owns. On a host build -- `cargo test`, and the lib cargo compiles for it -- std is used instead, because a `no_std` crate
+//! built with the default panic strategy does not compile there.
 //!
 //! Every function here is safe to call with anything: a null pointer, a length that does not match, a buffer of zero
 //! bytes. The app cannot be taken down by a log file.
 
-#![cfg_attr(not(test), no_std)]
+// `no_std` only where it is actually linked into the app: the arm64 iOS build. Everywhere else -- the Mac and Linux machines
+// `cargo test` runs on, and the lib as cargo builds it for those tests -- it uses std, because a `no_std` crate built with the
+// default `panic = "unwind"` does not compile at all ("unwinding panics are not supported without std"), and the panic setting
+// is ignored for the test profile. The property that matters is kept: the shipped staticlib carries no std of its own.
+#![cfg_attr(all(not(test), target_os = "ios"), no_std)]
 
 pub mod buf;
 pub mod crash;
@@ -148,12 +154,14 @@ pub unsafe extern "C" fn droidnest_crash_describe(
 // Swift, and a panic in either of the two modules above would be a bug in a pure function over a byte slice. Nothing here
 // is reachable from a bad log file -- every slice is length-checked and every character boundary is respected -- and the
 // app has its own crash handler writing the log if it ever is.
-#[cfg(not(test))]
+//
+// Gated on the same condition as `no_std` above: on a host build std brings its own handler, and two of them is an error.
+#[cfg(all(not(test), target_os = "ios"))]
 extern "C" {
     fn abort() -> !;
 }
 
-#[cfg(not(test))]
+#[cfg(all(not(test), target_os = "ios"))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     unsafe { abort() }
